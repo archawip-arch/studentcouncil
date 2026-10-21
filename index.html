@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>สภานักเรียน</title>
+<link href="https://fonts.googleapis.com/css2?family=Mali:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--sky:#dff0ff;--sky2:#b9dcf9;--ink:#27445f;--sun:#ffe48a;--sun2:#ffd04a;--grey:#e6e9ec;--greyt:#8a949d;--bg:#f6fbff;--card:#fff;--err:#c0392b}
+@media (prefers-color-scheme:dark){:root{--sky:#1c3347;--sky2:#2b4d68;--ink:#e8f3ff;--sun:#5a4a12;--sun2:#e2b92e;--grey:#2a3138;--greyt:#8c98a3;--bg:#10202d;--card:#182d3d}}
+*{box-sizing:border-box}
+body{margin:0;font-family:Mali,'Noto Sans Thai',sans-serif;background:var(--bg);color:var(--ink);min-height:100vh}
+#app{max-width:480px;margin:0 auto;padding:16px}
+h1,h2{margin:0 0 8px}
+input,button{font:inherit}
+input{width:100%;padding:12px 14px;border:2px solid var(--sky2);border-radius:14px;background:var(--card);color:var(--ink);margin:6px 0}
+input:focus,button:focus-visible{outline:3px solid var(--sun2);outline-offset:1px}
+.btn{background:var(--sun2);color:#3a2f00;border:0;border-radius:14px;padding:12px 18px;font-weight:700;cursor:pointer;width:100%;margin-top:8px}
+.btn.alt{background:var(--sky2);color:var(--ink)}
+.box{background:var(--card);border-radius:22px;padding:20px;box-shadow:0 4px 0 var(--sky2)}
+.banner{border-radius:22px;padding:28px 18px;background:var(--sun) center/cover;font-size:1.3rem;font-weight:700;margin-bottom:16px;min-height:110px;display:flex;align-items:flex-end}
+.banner span{background:var(--card);padding:6px 12px;border-radius:12px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.mod{border:0;border-radius:20px;padding:18px 10px;background:var(--sky);color:var(--ink);font-weight:700;cursor:pointer;box-shadow:0 4px 0 var(--sky2);text-align:center}
+.mod:nth-child(odd){background:var(--sun);box-shadow:0 4px 0 var(--sun2)}
+.mod .ic{font-size:2rem;display:block}
+.mod.off{background:var(--grey)!important;color:var(--greyt);box-shadow:0 4px 0 #cfd4d9;filter:grayscale(1)}
+.mod small{display:block;font-weight:400}
+.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:8px}
+.top button{width:auto;margin:0;padding:8px 12px}
+#spin{position:fixed;inset:0;background:rgba(246,251,255,.7);display:none;align-items:center;justify-content:center;z-index:9}
+#spin i{width:48px;height:48px;border:6px solid var(--sky2);border-top-color:var(--sun2);border-radius:50%;animation:s 1s linear infinite}
+@keyframes s{to{transform:rotate(360deg)}}
+#pop{position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;align-items:center;justify-content:center;z-index:8;padding:20px}
+#pop .box{text-align:center;max-width:320px}
+#pop .cute{font-size:4rem;display:inline-block;animation:b .6s ease-in-out infinite alternate}
+@keyframes b{from{transform:translateY(0) rotate(-6deg)}to{transform:translateY(-12px) rotate(6deg)}}
+@media (prefers-reduced-motion:reduce){#pop .cute,#spin i{animation-duration:3s}}
+#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:14px;display:none;z-index:10;max-width:90%}
+.row{display:flex;gap:8px;align-items:center;margin:6px 0}
+.row input[type=checkbox]{width:24px;height:24px;margin:0}
+.muted{color:var(--greyt);font-size:.9rem}
+hr{border:0;border-top:2px dashed var(--sky2);margin:18px 0}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="spin"><i></i></div>
+<div id="pop"><div class="box"><div class="cute">🐣</div><h2>ยังไม่เปิดบริการน้าาา</h2><p>รอติดตามเร็วๆนี้นะครับ!</p><button class="btn" onclick="closePop()">ตกลง</button></div></div>
+<div id="toast"></div>
+<script>
+// ใส่ URL ของ Web app จาก Apps Script ตรงนี้
+const API = 'PASTE_WEB_APP_URL_HERE';
+let T = null, D = null, busy = false;
+try { T = localStorage.getItem('tk'); } catch (e) {}
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function toast(m){const t=$('#toast');t.textContent=m;t.style.display='block';clearTimeout(toast.h);toast.h=setTimeout(()=>t.style.display='none',3500);}
+async function call(action, p = {}) {
+  if (busy) return {ok:false,error:'กำลังทำงานอยู่'};
+  busy = true; $('#spin').style.display = 'flex';
+  try {
+    const r = await fetch(API, { method: 'POST', body: JSON.stringify(Object.assign({ action, token: T }, p)) });
+    const j = await r.json();
+    if (!j.ok) throw new Error(j.error);
+    return j;
+  } catch (e) { toast(e.message || 'เชื่อมต่อไม่ได้ ลองใหม่อีกครั้ง'); return null; }
+  finally { busy = false; $('#spin').style.display = 'none'; }
+}
+function closePop(){$('#pop').style.display='none';}
+function logout(){T=null;try{localStorage.removeItem('tk');}catch(e){}viewLogin();}
+
+function viewLogin(){
+  $('#app').innerHTML = `<div class="banner"><span>🌤️ สภานักเรียน</span></div>
+  <div class="box"><h2>เข้าสู่ระบบ</h2><p class="muted">ใช้ชื่อผู้ใช้และรหัสผ่านที่พี่สภาให้ไว้</p>
+  <input id="u" placeholder="ชื่อผู้ใช้" autocomplete="username">
+  <input id="p" type="password" placeholder="รหัสผ่าน" autocomplete="current-password">
+  <button class="btn" id="go">เข้าสู่ระบบ</button></div>`;
+  const go = async () => {
+    const r = await call('login', { username: $('#u').value.trim(), password: $('#p').value });
+    if (r) { T = r.token; try { localStorage.setItem('tk', T); } catch (e) {} loadHome(); }
+  };
+  $('#go').onclick = go; $('#p').onkeydown = e => e.key === 'Enter' && go();
+}
+async function loadHome(){
+  const r = await call('home');
+  if (!r) { logout(); return; }
+  D = r; r.me.mustChange ? viewChangePw() : viewHome();
+}
+function viewChangePw(){
+  $('#app').innerHTML = `<div class="box"><h2>ตั้งรหัสผ่านใหม่</h2>
+  <p class="muted">เพื่อความปลอดภัย กรุณาเปลี่ยนรหัสผ่านก่อนใช้งาน (อย่างน้อย 6 ตัว)</p>
+  <input id="o" type="password" placeholder="รหัสผ่านเดิม"><input id="n" type="password" placeholder="รหัสผ่านใหม่">
+  <button class="btn" id="go">บันทึกรหัสผ่านใหม่</button></div>`;
+  $('#go').onclick = async () => {
+    const r = await call('changePassword', { oldPassword: $('#o').value, newPassword: $('#n').value });
+    if (r) { toast('เปลี่ยนรหัสผ่านแล้ว'); loadHome(); }
+  };
+}
+function viewHome(){
+  const m = D.me, adm = m.role === 'admin', b = D.banner || {};
+  const bg = b.img ? `style="background-image:url('${esc(b.img)}')"` : '';
+  $('#app').innerHTML = `<div class="top"><div><b>สวัสดี ${esc(m.name)}</b><div class="muted">${esc([m.class, m.studentId].filter(Boolean).join(' · '))}</div></div>
+  <div class="row">${adm ? '<button class="btn alt" id="ad">จัดการ</button>' : ''}<button class="btn alt" id="lo">ออก</button></div></div>
+  <div class="banner" ${bg}><span>${esc(b.text)}</span></div>
+  <div class="grid">${D.modules.map(x => `<button class="mod ${x.enabled ? '' : 'off'}" data-k="${esc(x.key)}">
+  <span class="ic">${esc(x.icon)}</span>${esc(x.name)}${x.enabled ? '' : '<small>เร็วๆ นี้</small>'}</button>`).join('')}</div>`;
+  $('#lo').onclick = logout; if (adm) $('#ad').onclick = viewAdmin;
+  document.querySelectorAll('.mod').forEach(el => el.onclick = () => {
+    const x = D.modules.find(y => y.key === el.dataset.k);
+    if (!x.enabled) $('#pop').style.display = 'flex';
+    else toast('เมนูนี้กำลังพัฒนา จะมาในเฟสถัดไป');
+  });
+}
+function viewAdmin(){
+  const b = D.banner || {};
+  $('#app').innerHTML = `<div class="top"><h2>จัดการระบบ</h2><button class="btn alt" id="bk">กลับ</button></div>
+  <div class="box"><b>เมนู (เปิด/ปิด และแก้ชื่อ)</b>
+  ${D.modules.map(x => `<div class="row" data-k="${esc(x.key)}"><input type="checkbox" ${x.enabled ? 'checked' : ''} aria-label="เปิดใช้งาน">
+  <span>${esc(x.icon)}</span><input value="${esc(x.name)}" maxlength="30"><button class="btn" style="width:auto;margin:0">บันทึก</button></div>`).join('')}
+  <hr><b>แบนเนอร์หน้าแรก</b>
+  <input id="bt" value="${esc(b.text)}" placeholder="ข้อความ" maxlength="80"><input id="bi" value="${esc(b.img)}" placeholder="ลิงก์รูปแบนเนอร์ (ว่างได้)">
+  <button class="btn" id="sb">บันทึกแบนเนอร์</button>
+  <hr><b>รีเซ็ตรหัสผ่านให้นักเรียน</b>
+  <input id="ru" placeholder="ชื่อผู้ใช้"><input id="rp" placeholder="รหัสชั่วคราว (6 ตัวขึ้นไป)">
+  <button class="btn" id="rs">รีเซ็ตรหัสผ่าน</button><p class="muted">เจ้าของบัญชีต้องตั้งรหัสใหม่ตอนเข้าครั้งถัดไป</p></div>`;
+  $('#bk').onclick = viewHome;
+  document.querySelectorAll('.row[data-k]').forEach(row => row.querySelector('button').onclick = async () => {
+    const r = await call('setModule', { key: row.dataset.k, name: row.querySelectorAll('input')[1].value, enabled: row.querySelector('input').checked });
+    if (r) { toast('บันทึกแล้ว'); const h = await call('home'); if (h) D = h; }
+  });
+  $('#sb').onclick = async () => { if (await call('setBanner', { text: $('#bt').value, img: $('#bi').value })) { toast('บันทึกแบนเนอร์แล้ว'); const h = await call('home'); if (h) D = h; } };
+  $('#rs').onclick = async () => { if (await call('resetPassword', { username: $('#ru').value.trim(), newPassword: $('#rp').value })) { toast('รีเซ็ตรหัสผ่านแล้ว'); $('#ru').value = $('#rp').value = ''; } };
+}
+T ? loadHome() : viewLogin();
+</script>
+</body>
+</html>
