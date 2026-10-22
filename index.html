@@ -57,7 +57,7 @@ const $ = s => document.querySelector(s);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function toast(m){const t=$('#toast');t.textContent=m;t.style.display='block';clearTimeout(toast.h);toast.h=setTimeout(()=>t.style.display='none',3500);}
 async function call(action, p = {}) {
-  if (busy) return {ok:false,error:'กำลังทำงานอยู่'};
+  if (busy) return null;
   busy = true; $('#spin').style.display = 'flex';
   try {
     const r = await fetch(API, { method: 'POST', body: JSON.stringify(Object.assign({ action, token: T }, p)) });
@@ -73,13 +73,15 @@ function logout(){T=null;try{localStorage.removeItem('tk');}catch(e){}viewLogin(
 function viewLogin(){
   $('#app').innerHTML = `<div class="banner"><span>🌤️ สภานักเรียน</span></div>
   <div class="box"><h2>เข้าสู่ระบบ</h2><p class="muted">ใช้ชื่อผู้ใช้และรหัสผ่านที่พี่สภาให้ไว้</p>
-  <input id="u" placeholder="ชื่อผู้ใช้" autocomplete="username">
-  <input id="p" type="text" style="-webkit-text-security:disc" placeholder="รหัสผ่าน" autocomplete="current-password" autocapitalize="off" autocorrect="off">  <button class="btn" id="go">เข้าสู่ระบบ</button></div>`;
+  <input id="u" placeholder="ชื่อผู้ใช้" autocomplete="username" autocapitalize="off" autocorrect="off">
+  <input id="p" type="password" placeholder="รหัสผ่าน" autocomplete="current-password">
+  <button class="btn" id="go">เข้าสู่ระบบ</button></div>`;
   const go = async () => {
     const r = await call('login', { username: $('#u').value.trim(), password: $('#p').value });
     if (r) { T = r.token; try { localStorage.setItem('tk', T); } catch (e) {} loadHome(); }
   };
-  $('#go').onclick = go; $('#p').onkeydown = e => e.key === 'Enter' && go();
+  $('#go').onclick = go;
+  $('#p').onkeydown = e => { if (e.key === 'Enter') go(); };
 }
 async function loadHome(){
   const r = await call('home');
@@ -89,7 +91,9 @@ async function loadHome(){
 function viewChangePw(){
   $('#app').innerHTML = `<div class="box"><h2>ตั้งรหัสผ่านใหม่</h2>
   <p class="muted">เพื่อความปลอดภัย กรุณาเปลี่ยนรหัสผ่านก่อนใช้งาน (อย่างน้อย 6 ตัว)</p>
-  <input id="o" type="text" style="-webkit-text-security:disc" autocapitalize="off" autocorrect="off" placeholder="รหัสผ่านเดิม"><input id="n" type="text" style="-webkit-text-security:disc" autocapitalize="off" autocorrect="off" placeholder="รหัสผ่านใหม่">  <button class="btn" id="go">บันทึกรหัสผ่านใหม่</button></div>`;
+  <input id="o" type="password" placeholder="รหัสผ่านเดิม" autocomplete="current-password">
+  <input id="n" type="password" placeholder="รหัสผ่านใหม่" autocomplete="new-password">
+  <button class="btn" id="go">บันทึกรหัสผ่านใหม่</button></div>`;
   $('#go').onclick = async () => {
     const r = await call('changePassword', { oldPassword: $('#o').value, newPassword: $('#n').value });
     if (r) { toast('เปลี่ยนรหัสผ่านแล้ว'); loadHome(); }
@@ -120,7 +124,7 @@ function viewAdmin(){
   <input id="bt" value="${esc(b.text)}" placeholder="ข้อความ" maxlength="80"><input id="bi" value="${esc(b.img)}" placeholder="ลิงก์รูปแบนเนอร์ (ว่างได้)">
   <button class="btn" id="sb">บันทึกแบนเนอร์</button>
   <hr><b>รีเซ็ตรหัสผ่านให้นักเรียน</b>
-  <input id="ru" placeholder="ชื่อผู้ใช้"><input id="rp" placeholder="รหัสชั่วคราว (6 ตัวขึ้นไป)">
+  <input id="ru" placeholder="ชื่อผู้ใช้" autocapitalize="off"><input id="rp" placeholder="รหัสชั่วคราว (6 ตัวขึ้นไป)" autocapitalize="off">
   <button class="btn" id="rs">รีเซ็ตรหัสผ่าน</button><p class="muted">เจ้าของบัญชีต้องตั้งรหัสใหม่ตอนเข้าครั้งถัดไป</p></div>`;
   $('#bk').onclick = viewHome;
   document.querySelectorAll('.row[data-k]').forEach(row => row.querySelector('button').onclick = async () => {
