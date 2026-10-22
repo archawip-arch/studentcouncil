@@ -47,3 +47,100 @@ hr{border:0;border-top:2px dashed var(--sky2);margin:18px 0}
 <div id="app"></div>
 <div id="spin"><i></i></div>
 <div id="pop"><div class="box"><div class="cute">🐣</div><h2>ยังไม่เปิดบริการน้าาา</h2><p>รอติดตามเร็วๆนี้นะครับ!</p><button class="btn" onclick="closePop()">ตกลง</button></div></div>
+<div id="toast"></div>
+<script>
+// ใส่ลิงก์ Web app (ลงท้าย /exec) ระหว่างเครื่องหมาย ' ทั้งสองข้าง
+const API_RAW = 'PASTE_WEB_APP_URL_HERE';
+const API = API_RAW.replace(/\s+/g, '');
+const API_OK = /^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec$/.test(API);
+let T = null, D = null, busy = false;
+try { T = localStorage.getItem('tk'); } catch (e) {}
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function toast(m){const t=$('#toast');t.textContent=m;t.style.display='block';clearTimeout(toast.h);toast.h=setTimeout(()=>t.style.display='none',8000);}
+async function call(action, p = {}) {
+  if (!API_OK) { toast('ลิงก์หลังบ้านในโค้ดไม่ถูกต้อง ต้องเป็นลิงก์ https://script.google.com/macros/s/.../exec'); return null; }
+  if (busy) return null;
+  busy = true; $('#spin').style.display = 'flex';
+  try {
+    const r = await fetch(API, { method: 'POST', body: JSON.stringify(Object.assign({ action, token: T }, p)) });
+    const tx = await r.text();
+    let j;
+    try { j = JSON.parse(tx); }
+    catch (x) { throw new Error('หลังบ้านตอบผิดรูปแบบ: ' + tx.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 150)); }
+    if (!j.ok) throw new Error(j.error);
+    return j;
+  } catch (e) { toast(e.message || 'เชื่อมต่อไม่ได้ ลองใหม่อีกครั้ง'); return null; }
+  finally { busy = false; $('#spin').style.display = 'none'; }
+}
+function closePop(){$('#pop').style.display='none';}
+function logout(){T=null;try{localStorage.removeItem('tk');}catch(e){}viewLogin();}
+
+function viewLogin(){
+  $('#app').innerHTML = `<div class="banner"><span>🌤️ สภานักเรียน</span></div>
+  <div class="box"><h2>เข้าสู่ระบบ</h2><p class="muted">ใช้ชื่อผู้ใช้และรหัสผ่านที่พี่สภาให้ไว้</p>
+  <input id="u" placeholder="ชื่อผู้ใช้" autocomplete="username" autocapitalize="off" autocorrect="off">
+  <input id="p" type="password" placeholder="รหัสผ่าน" autocomplete="current-password">
+  <button class="btn" id="go">เข้าสู่ระบบ</button></div>`;
+  const go = async () => {
+    const r = await call('login', { username: $('#u').value.trim(), password: $('#p').value });
+    if (r) { T = r.token; try { localStorage.setItem('tk', T); } catch (e) {} loadHome(); }
+  };
+  $('#go').onclick = go;
+  $('#p').onkeydown = e => { if (e.key === 'Enter') go(); };
+}
+async function loadHome(){
+  const r = await call('home');
+  if (!r) { logout(); return; }
+  D = r; r.me.mustChange ? viewChangePw() : viewHome();
+}
+function viewChangePw(){
+  $('#app').innerHTML = `<div class="box"><h2>ตั้งรหัสผ่านใหม่</h2>
+  <p class="muted">เพื่อความปลอดภัย กรุณาเปลี่ยนรหัสผ่านก่อนใช้งาน (อย่างน้อย 6 ตัว)</p>
+  <input id="o" type="password" placeholder="รหัสผ่านเดิม" autocomplete="current-password">
+  <input id="n" type="password" placeholder="รหัสผ่านใหม่" autocomplete="new-password">
+  <button class="btn" id="go">บันทึกรหัสผ่านใหม่</button></div>`;
+  $('#go').onclick = async () => {
+    const r = await call('changePassword', { oldPassword: $('#o').value, newPassword: $('#n').value });
+    if (r) { toast('เปลี่ยนรหัสผ่านแล้ว'); loadHome(); }
+  };
+}
+function viewHome(){
+  const m = D.me, adm = m.role === 'admin', b = D.banner || {};
+  const bg = b.img ? `style="background-image:url('${esc(b.img)}')"` : '';
+  $('#app').innerHTML = `<div class="top"><div><b>สวัสดี ${esc(m.name)}</b><div class="muted">${esc([m.class, m.studentId].filter(Boolean).join(' · '))}</div></div>
+  <div class="row">${adm ? '<button class="btn alt" id="ad">จัดการ</button>' : ''}<button class="btn alt" id="lo">ออก</button></div></div>
+  <div class="banner" ${bg}><span>${esc(b.text)}</span></div>
+  <div class="grid">${D.modules.map(x => `<button class="mod ${x.enabled ? '' : 'off'}" data-k="${esc(x.key)}">
+  <span class="ic">${esc(x.icon)}</span>${esc(x.name)}${x.enabled ? '' : '<small>เร็วๆ นี้</small>'}</button>`).join('')}</div>`;
+  $('#lo').onclick = logout; if (adm) $('#ad').onclick = viewAdmin;
+  document.querySelectorAll('.mod').forEach(el => el.onclick = () => {
+    const x = D.modules.find(y => y.key === el.dataset.k);
+    if (!x.enabled) $('#pop').style.display = 'flex';
+    else toast('เมนูนี้กำลังพัฒนา จะมาในเฟสถัดไป');
+  });
+}
+function viewAdmin(){
+  const b = D.banner || {};
+  $('#app').innerHTML = `<div class="top"><h2>จัดการระบบ</h2><button class="btn alt" id="bk">กลับ</button></div>
+  <div class="box"><b>เมนู (เปิด/ปิด และแก้ชื่อ)</b>
+  ${D.modules.map(x => `<div class="row" data-k="${esc(x.key)}"><input type="checkbox" ${x.enabled ? 'checked' : ''} aria-label="เปิดใช้งาน">
+  <span>${esc(x.icon)}</span><input value="${esc(x.name)}" maxlength="30"><button class="btn" style="width:auto;margin:0">บันทึก</button></div>`).join('')}
+  <hr><b>แบนเนอร์หน้าแรก</b>
+  <input id="bt" value="${esc(b.text)}" placeholder="ข้อความ" maxlength="80"><input id="bi" value="${esc(b.img)}" placeholder="ลิงก์รูปแบนเนอร์ (ว่างได้)">
+  <button class="btn" id="sb">บันทึกแบนเนอร์</button>
+  <hr><b>รีเซ็ตรหัสผ่านให้นักเรียน</b>
+  <input id="ru" placeholder="ชื่อผู้ใช้" autocapitalize="off"><input id="rp" placeholder="รหัสชั่วคราว (6 ตัวขึ้นไป)" autocapitalize="off">
+  <button class="btn" id="rs">รีเซ็ตรหัสผ่าน</button><p class="muted">เจ้าของบัญชีต้องตั้งรหัสใหม่ตอนเข้าครั้งถัดไป</p></div>`;
+  $('#bk').onclick = viewHome;
+  document.querySelectorAll('.row[data-k]').forEach(row => row.querySelector('button').onclick = async () => {
+    const r = await call('setModule', { key: row.dataset.k, name: row.querySelectorAll('input')[1].value, enabled: row.querySelector('input').checked });
+    if (r) { toast('บันทึกแล้ว'); const h = await call('home'); if (h) D = h; }
+  });
+  $('#sb').onclick = async () => { if (await call('setBanner', { text: $('#bt').value, img: $('#bi').value })) { toast('บันทึกแบนเนอร์แล้ว'); const h = await call('home'); if (h) D = h; } };
+  $('#rs').onclick = async () => { if (await call('resetPassword', { username: $('#ru').value.trim(), newPassword: $('#rp').value })) { toast('รีเซ็ตรหัสผ่านแล้ว'); $('#ru').value = $('#rp').value = ''; } };
+}
+T ? loadHome() : viewLogin();
+</script>
+</body>
+</html>
