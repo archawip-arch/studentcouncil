@@ -74,8 +74,7 @@ function viewLogin(){
   $('#app').innerHTML = `<div class="banner"><span>🌤️ สภานักเรียน</span></div>
   <div class="box"><h2>เข้าสู่ระบบ</h2><p class="muted">ใช้ชื่อผู้ใช้และรหัสผ่านที่พี่สภาให้ไว้</p>
   <input id="u" placeholder="ชื่อผู้ใช้" autocomplete="username">
-  <input id="p" type="password" placeholder="รหัสผ่าน" autocomplete="current-password">
-  <button class="btn" id="go">เข้าสู่ระบบ</button></div>`;
+  <input id="p" type="text" style="-webkit-text-security:disc" placeholder="รหัสผ่าน" autocomplete="current-password" autocapitalize="off" autocorrect="off">  <button class="btn" id="go">เข้าสู่ระบบ</button></div>`;
   const go = async () => {
     const r = await call('login', { username: $('#u').value.trim(), password: $('#p').value });
     if (r) { T = r.token; try { localStorage.setItem('tk', T); } catch (e) {} loadHome(); }
@@ -90,8 +89,7 @@ async function loadHome(){
 function viewChangePw(){
   $('#app').innerHTML = `<div class="box"><h2>ตั้งรหัสผ่านใหม่</h2>
   <p class="muted">เพื่อความปลอดภัย กรุณาเปลี่ยนรหัสผ่านก่อนใช้งาน (อย่างน้อย 6 ตัว)</p>
-  <input id="o" type="password" placeholder="รหัสผ่านเดิม"><input id="n" type="password" placeholder="รหัสผ่านใหม่">
-  <button class="btn" id="go">บันทึกรหัสผ่านใหม่</button></div>`;
+  <input id="o" type="text" style="-webkit-text-security:disc" autocapitalize="off" autocorrect="off" placeholder="รหัสผ่านเดิม"><input id="n" type="text" style="-webkit-text-security:disc" autocapitalize="off" autocorrect="off" placeholder="รหัสผ่านใหม่">  <button class="btn" id="go">บันทึกรหัสผ่านใหม่</button></div>`;
   $('#go').onclick = async () => {
     const r = await call('changePassword', { oldPassword: $('#o').value, newPassword: $('#n').value });
     if (r) { toast('เปลี่ยนรหัสผ่านแล้ว'); loadHome(); }
