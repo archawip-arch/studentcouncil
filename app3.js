@@ -110,3 +110,4 @@ viewAdmin = function () {
   $('#trs').onclick = () => save({ sun: '', sky: '', bg: '' });
   $('#inb').onclick = () => { const x = D.modules.find(m => m.type === 'msg'); if (x) viewMsg(x, 'all'); };
 };
+document.head.insertAdjacentHTML('beforeend', '<style>.mod:not(.off){background:var(--sun)!important;box-shadow:0 4px 0 var(--sun2)!important}</style>');
